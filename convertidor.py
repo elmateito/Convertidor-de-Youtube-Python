@@ -19,9 +19,9 @@ def download(format):
                     saved = filename + format
                     rename(getVid, saved)
             elif format == '.mp4':
-                    getVid = content.streams.get_highest_resolution().download(output_path='video')
+                    getVid = content.streams.get_highest_resolution().download(output_path='media/video')
             elif format == '.wav' or format == '.mp3':
-                    getSnd = content.streams.get_audio_only().download(output_path='audio')
+                    getSnd = content.streams.get_audio_only().download(output_path='media/audio')
                     filename, old = path.splitext(getSnd)
                     saved = filename + format
                     rename(getSnd, saved)
