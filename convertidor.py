@@ -32,7 +32,7 @@ def download(format):
 main = CTk()
 main.title('Convertidor de Youtube')
 main.configure(background='#161a1d')
-#main.iconbitmap('./appicon/youtube.ico')
+#main.iconbitmap('./icon/youtube.ico')
 set_default_color_theme("dark-blue")
 set_appearance_mode("dark")
 
