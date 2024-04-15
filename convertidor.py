@@ -14,7 +14,7 @@ def download(format):
             if format == 'formatos de video' or format == 'formatos de audio':
                 mb.showwarning('Formato de archivo', 'Seleccione el formato al que desea convertir el video')
             elif format == '.avi': 
-                    getVid = content.streams.get_highest_resolution().download(output_path='video')
+                    getVid = content.streams.get_highest_resolution().download(output_path='media/video')
                     filename, old = path.splitext(getVid)
                     saved = filename + format
                     rename(getVid, saved)
