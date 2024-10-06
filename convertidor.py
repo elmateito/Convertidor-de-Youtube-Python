@@ -3,7 +3,7 @@ from customtkinter import CTk, set_appearance_mode, set_default_color_theme, CTk
 from tkinter import END, messagebox as mb
 from os import rename, path
 
-VID_FORMATS, AUD_FORMATS = ['.avi', '.mp4'], ['.wav', '.mp3']
+vidFormats, audFormats, historial  = ['.avi', '.mp4'], ['.wav', '.mp3'], {}
 
 def update_history(title, url): # actualizar historial
     if len(historial) == 4:
@@ -12,10 +12,11 @@ def update_history(title, url): # actualizar historial
     render_history()
 
 def render_history(): # render historial
-    for video_ind, (titleyt, linkyt) in enumerate(historial.items(), start=3):
-        links = CTkTextbox(navbar.tab('Historial'), height=51, width=390, font=('consolas', 14))
-        links.grid(row=video_ind, column=0, columnspan=2, pady=2)
-        links.insert(END, f'{video_ind-2}. {titleyt}:\n{linkyt}')
+    if historial: labelHistorial.grid_remove()
+    for videoInd, (titleyt, linkyt) in enumerate(historial.items(), start=2):
+        links = CTkTextbox(navbar.tab('Historial'), height=57, width=400, font=('consolas bold', 15))
+        links.grid(row=videoInd, column=0, columnspan=2, pady=3, padx=10)
+        links.insert(END, f'{videoInd-1}. {titleyt}:\n{linkyt}')
         links.configure(state='disabled')
 
 def download(format): #descarga
@@ -23,12 +24,12 @@ def download(format): #descarga
     if not url:
         mb.showwarning('Advertencia', 'Ingrese una URL')
         return
-    if format not in VID_FORMATS + AUD_FORMATS:
+    if format not in vidFormats + audFormats:
         mb.showwarning('Formato de archivo', 'Seleccione un formato válido')
         return
     try:
         content = YouTube(url)
-        if format in VID_FORMATS:
+        if format in vidFormats:
             file = content.streams.get_highest_resolution().download(output_path='media/video')
         else:
             file = content.streams.get_audio_only().download(output_path='media/audio')
@@ -71,7 +72,7 @@ CTkButton(navbar.tab('Inicio'), font=btnFont, text='Limpiar entrada',
          command=lambda: link.delete(0, END)).grid(row=4, column=0, columnspan=2, pady=10)
 
 #selección formato y btn descarga de video y audio
-vidResBox = CTkComboBox(navbar.tab('Inicio'), values=[fmt.upper() for fmt in VID_FORMATS], 
+vidResBox = CTkComboBox(navbar.tab('Inicio'), values=[fmt.upper() for fmt in vidFormats], 
                         font=('consolas', 12), width=160)
 vidResBox.grid(row=5, column=0, pady=15)
 vidResBox.set('Formatos de video')
@@ -79,7 +80,7 @@ CTkButton(navbar.tab('Inicio'), font=btnFont, text='Descarga video',
          command=lambda: download(vidResBox.get().lower())).grid(row=6, column=0, pady=10)
 
 #selección formato y btn descarga de audio
-sndResBox = CTkComboBox(navbar.tab('Inicio'), values=[fmt.upper() for fmt in AUD_FORMATS], 
+sndResBox = CTkComboBox(navbar.tab('Inicio'), values=[fmt.upper() for fmt in audFormats], 
                         font=('consolas', 12), width=160)
 sndResBox.grid(row=5, column=1, pady=15)
 sndResBox.set('Formatos de audio')
@@ -87,8 +88,8 @@ CTkButton(navbar.tab('Inicio'), font=btnFont, text='Descarga audio',
          command=lambda: download(sndResBox.get().lower())).grid(row=6, column=1, pady=10)
 
 #historial
-CTkLabel(navbar.tab('Historial'), text='Historial de Descargas', 
-         font=('consolas bold', 16), pady=5, width=420).grid(row=1, column=0, columnspan=2)
-historial = {}
+labelHistorial = CTkLabel(navbar.tab('Historial'), text='Sin descargas existentes', 
+         font=('consolas bold', 18), pady=5, width=420)
+labelHistorial.grid(row=1, column=0, columnspan=2)
 
 main.mainloop()
