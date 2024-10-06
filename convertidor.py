@@ -14,8 +14,8 @@ def update_history(title, url): # actualizar historial
 def render_history(): # render historial
     if historial: labelHistorial.grid_remove()
     for videoInd, (titleyt, linkyt) in enumerate(historial.items(), start=2):
-        links = CTkTextbox(navbar.tab('Historial'), height=57, width=400, font=('consolas bold', 15))
-        links.grid(row=videoInd, column=0, columnspan=2, pady=3, padx=10)
+        links = CTkTextbox(navbar.tab('Historial'), height=60, width=449, font=('consolas bold', 16))
+        links.grid(row=videoInd, column=0, columnspan=2, pady=3, padx=5)
         links.insert(END, f'{videoInd-1}. {titleyt}:\n{linkyt}')
         links.configure(state='disabled')
 
@@ -46,11 +46,11 @@ main.title('Convertidor de Youtube')
 main.configure(background='#161a1d')
 set_default_color_theme("dark-blue")
 set_appearance_mode("dark")
-appw, apph = 450, 305
+appw, apph = 490, 320
 x, y = (main.winfo_screenwidth()//2 - appw//2), (main.winfo_screenheight()//2 - apph//2)
 main.geometry(f'{appw}x{apph}+{x}+{y}')
 main.resizable(width=False, height=False)
-btnFont = CTkFont(family="consolas bold", size=14) #button fonts
+btnFont = CTkFont(family="consolas bold", size=16) #button fonts
 
 #tabs
 navbar = CTkTabview(main)
@@ -61,35 +61,35 @@ navbar.add('Historial')
 
 #texto - Title
 CTkLabel(navbar.tab('Inicio'), text='Ingrese el link del video a convertir:',
-         font=('consolas bold', 18), pady=10, padx=20).grid(row=1, column=0, columnspan=2)
+         font=('consolas bold', 20), pady=10, padx=20).grid(row=1, column=0, columnspan=2)
 
-#entry - Entrada de link de YT
-link = CTkEntry(navbar.tab('Inicio'), width=375, height=30, border_width=2, corner_radius=5, font=('consolas', 16))
+# entrada - Entrada de link de YT
+link = CTkEntry(navbar.tab('Inicio'), width=375, height=30, border_width=2, corner_radius=5, font=('consolas', 18))
 link.grid(row=2, column=0, columnspan=2, pady=10)
 
-#limpiar entrada
+# limpiar entrada
 CTkButton(navbar.tab('Inicio'), font=btnFont, text='Limpiar entrada', 
          command=lambda: link.delete(0, END)).grid(row=4, column=0, columnspan=2, pady=10)
 
-#selección formato y btn descarga de video y audio
+# selección formato y btn descarga de video y audio
 vidResBox = CTkComboBox(navbar.tab('Inicio'), values=[fmt.upper() for fmt in vidFormats], 
-                        font=('consolas', 12), width=160)
+                        font=('consolas', 14), width=175)
 vidResBox.grid(row=5, column=0, pady=15)
 vidResBox.set('Formatos de video')
 CTkButton(navbar.tab('Inicio'), font=btnFont, text='Descarga video', 
          command=lambda: download(vidResBox.get().lower())).grid(row=6, column=0, pady=10)
 
-#selección formato y btn descarga de audio
+# selección formato y btn descarga de audio
 sndResBox = CTkComboBox(navbar.tab('Inicio'), values=[fmt.upper() for fmt in audFormats], 
-                        font=('consolas', 12), width=160)
+                        font=('consolas', 14), width=175)
 sndResBox.grid(row=5, column=1, pady=15)
 sndResBox.set('Formatos de audio')
 CTkButton(navbar.tab('Inicio'), font=btnFont, text='Descarga audio', 
          command=lambda: download(sndResBox.get().lower())).grid(row=6, column=1, pady=10)
 
-#historial
+# historial
 labelHistorial = CTkLabel(navbar.tab('Historial'), text='Sin descargas existentes', 
-         font=('consolas bold', 18), pady=5, width=420)
+         font=('consolas bold', 20), pady=50, width=459)
 labelHistorial.grid(row=1, column=0, columnspan=2)
 
 main.mainloop()
