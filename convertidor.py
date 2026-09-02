@@ -1,95 +1,210 @@
-from pytubefix import YouTube
-from customtkinter import CTk, set_appearance_mode, set_default_color_theme, CTkFont, CTkLabel, CTkEntry, CTkButton, CTkComboBox, CTkTabview, CTkTextbox
-from tkinter import END, messagebox as mb
-from os import rename, path
+#!/usr/bin/env python3
+"""
+Convertidor de YouTube/YouTube Music a audio
+Descarga canciones, playlists y albumes en multiples formatos.
+"""
 
-vidFormats, audFormats, historial  = ['.avi', '.mp4'], ['.wav', '.mp3'], {}
+import yt_dlp
+import os
+import sys
+import shutil
+import argparse
+from pathlib import Path
 
-def update_history(title, url): # actualizar historial
-    if len(historial) == 4:
-        historial.pop(next(iter(historial)))
-    historial[title] = url  
-    render_history()
+SUPPORTED_FORMATS = ['mp3', 'flac', 'aac', 'opus', 'm4a', 'wav']
+SUPPORTED_BROWSERS = ['chrome', 'firefox', 'edge', 'brave', 'opera', 'vivaldi']
+DEFAULT_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'downloads')
 
-def render_history(): # render historial
-    if historial: labelHistorial.grid_remove()
-    for videoInd, (titleyt, linkyt) in enumerate(historial.items(), start=2):
-        links = CTkTextbox(navbar.tab('Historial'), height=60, width=449, font=('consolas bold', 16))
-        links.grid(row=videoInd, column=0, columnspan=2, pady=3, padx=5)
-        links.insert(END, f'{videoInd-1}. {titleyt}:\n{linkyt}')
-        links.configure(state='disabled')
+def check_ffmpeg():
+    """Verifica si ffmpeg esta instalado."""
+    return shutil.which('ffmpeg') is not None
 
-def download(format): #descarga
-    url = link.get()
-    if not url:
-        mb.showwarning('Advertencia', 'Ingrese una URL')
-        return
-    if format not in vidFormats + audFormats:
-        mb.showwarning('Formato de archivo', 'Seleccione un formato válido')
-        return
+def progress_hook(d):
+    """Muestra el progreso de la descarga."""
+    if d['status'] == 'downloading':
+        percent = d.get('_percent_str', 'N/A')
+        speed = d.get('_speed_str', 'N/A')
+        eta = d.get('_eta_str', 'N/A')
+        print(f"\r  Descargando: {percent} | Velocidad: {speed} | ETA: {eta}", end='', flush=True)
+    elif d['status'] == 'finished':
+        print(f"\n  Descarga completa. Procesando audio...")
+
+def download_music(url, audio_format='mp3', output_dir=None, browser=None, cookies_file=None):
+    """
+    Descarga audio desde YouTube o YouTube Music.
+
+    Args:
+        url: URL del video o playlist
+        audio_format: Formato de audio (mp3, flac, aac, opus, m4a, wav)
+        output_dir: Directorio de salida
+        browser: Nombre del navegador para extraer cookies
+        cookies_file: Ruta al archivo de cookies
+    """
+    if audio_format not in SUPPORTED_FORMATS:
+        print(f"Error: Formato '{audio_format}' no soportado.")
+        print(f"Formatos validos: {', '.join(SUPPORTED_FORMATS)}")
+        return False
+
+    if output_dir is None:
+        output_dir = DEFAULT_OUTPUT_DIR
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    use_ffmpeg = check_ffmpeg()
+    if not use_ffmpeg:
+        print("Advertencia: ffmpeg no encontrado. El audio NO sera convertido.")
+        print("Instale ffmpeg: sudo pacman -S ffmpeg")
+        print("Se descargara el archivo original.\n")
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
+        'writethumbnail': True,
+        'addmetadata': True,
+        'progress_hooks': [progress_hook],
+        'ignoreerrors': True,
+        'no_warnings': False,
+    }
+
+    # Autenticacion con cookies
+    if browser:
+        ydl_opts['cookiesfrombrowser'] = (browser,)
+        print(f"Usando cookies del navegador: {browser}")
+    elif cookies_file:
+        if not os.path.exists(cookies_file):
+            print(f"Error: Archivo de cookies no encontrado: {cookies_file}")
+            return False
+        ydl_opts['cookiefile'] = cookies_file
+        print(f"Usando archivo de cookies: {cookies_file}")
+    else:
+        print("Sin autenticacion. Si hay error, use --browser o --cookies")
+
+    if use_ffmpeg:
+        ydl_opts['postprocessors'] = [
+            {
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': audio_format,
+                'preferredquality': '0',
+            },
+            {
+                'key': 'FFmpegThumbnail',
+            },
+            {
+                'key': 'FFmpegMetadata',
+            },
+        ]
+
     try:
-        content = YouTube(url)
-        if format in vidFormats:
-            file = content.streams.get_highest_resolution().download(output_path='media/video')
-        else:
-            file = content.streams.get_audio_only().download(output_path='media/audio')
-        if format != '.mp4':  
-            filename, _ = path.splitext(file)
-            rename(file, filename + format)
-        update_history(content.title, url)
-    except Exception:
-        mb.showerror('Error al buscar URL', 'Revise la URL e intentelo de nuevo')
+        print(f"\n{'='*50}")
+        print(f"URL: {url}")
+        print(f"Formato: {audio_format.upper()}")
+        print(f"Directorio: {output_dir}")
+        print(f"{'='*50}\n")
 
-#instanciar de ventana Tk
-main = CTk()
-main.title('Convertidor de Youtube')
-main.configure(background='#161a1d')
-set_default_color_theme("dark-blue")
-set_appearance_mode("dark")
-appw, apph = 490, 320
-x, y = (main.winfo_screenwidth()//2 - appw//2), (main.winfo_screenheight()//2 - apph//2)
-main.geometry(f'{appw}x{apph}+{x}+{y}')
-main.resizable(width=False, height=False)
-btnFont = CTkFont(family="consolas bold", size=16) #button fonts
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
 
-#tabs
-navbar = CTkTabview(main)
-navbar._segmented_button.configure(font=btnFont)
-navbar.grid(padx=10)
-navbar.add('Inicio')
-navbar.add('Historial')
+        print(f"\n{'='*50}")
+        print("Descarga completada exitosamente!")
+        print(f"Archivos guardados en: {output_dir}")
+        print(f"{'='*50}\n")
+        return True
 
-#texto - Title
-CTkLabel(navbar.tab('Inicio'), text='Ingrese el link del video a convertir:',
-         font=('consolas bold', 20), pady=10, padx=20).grid(row=1, column=0, columnspan=2)
+    except Exception as e:
+        print(f"\nError durante la descarga: {e}")
+        return False
 
-# entrada - Entrada de link de YT
-link = CTkEntry(navbar.tab('Inicio'), width=375, height=30, border_width=2, corner_radius=5, font=('consolas', 18))
-link.grid(row=2, column=0, columnspan=2, pady=10)
+def interactive_mode():
+    """Modo interactivo para descargar musica."""
+    print("\n" + "="*50)
+    print("  CONVERTIDOR DE YOUTUBE MUSIC")
+    print("="*50)
 
-# limpiar entrada
-CTkButton(navbar.tab('Inicio'), font=btnFont, text='Limpiar entrada', 
-         command=lambda: link.delete(0, END)).grid(row=4, column=0, columnspan=2, pady=10)
+    if not check_ffmpeg():
+        print("\nAdvertencia: ffmpeg no instalado.")
+        print("Para conversion de audio: sudo pacman -S ffmpeg\n")
 
-# selección formato y btn descarga de video y audio
-vidResBox = CTkComboBox(navbar.tab('Inicio'), values=[fmt.upper() for fmt in vidFormats], 
-                        font=('consolas', 14), width=175)
-vidResBox.grid(row=5, column=0, pady=15)
-vidResBox.set('Formatos de video')
-CTkButton(navbar.tab('Inicio'), font=btnFont, text='Descarga video', 
-         command=lambda: download(vidResBox.get().lower())).grid(row=6, column=0, pady=10)
+    url = input("\nIngrese la URL de YouTube o YouTube Music: ").strip()
+    if not url:
+        print("URL invalida.")
+        return
 
-# selección formato y btn descarga de audio
-sndResBox = CTkComboBox(navbar.tab('Inicio'), values=[fmt.upper() for fmt in audFormats], 
-                        font=('consolas', 14), width=175)
-sndResBox.grid(row=5, column=1, pady=15)
-sndResBox.set('Formatos de audio')
-CTkButton(navbar.tab('Inicio'), font=btnFont, text='Descarga audio', 
-         command=lambda: download(sndResBox.get().lower())).grid(row=6, column=1, pady=10)
+    print(f"\nFormatos disponibles: {', '.join(SUPPORTED_FORMATS)}")
+    fmt = input("Formato de audio [mp3]: ").strip().lower() or 'mp3'
 
-# historial
-labelHistorial = CTkLabel(navbar.tab('Historial'), text='Sin descargas existentes', 
-         font=('consolas bold', 20), pady=50, width=459)
-labelHistorial.grid(row=1, column=0, columnspan=2)
+    if fmt not in SUPPORTED_FORMATS:
+        print(f"Formato '{fmt}' no valido. Usando mp3.")
+        fmt = 'mp3'
 
-main.mainloop()
+    out = input(f"Directorio de salida [{DEFAULT_OUTPUT_DIR}]: ").strip() or None
+
+    # Preguntar por autenticacion
+    print("\n--- Autenticacion (opcional) ---")
+    print("Si YouTube pide login, seleccione su navegador o indique archivo de cookies.")
+    print(f"Navegadores soportados: {', '.join(SUPPORTED_BROWSERS)}")
+    auth_choice = input("Metodo de autenticacion (navegador/cookies/ninguno) [ninguno]: ").strip().lower() or 'ninguno'
+
+    browser = None
+    cookies_file = None
+
+    if auth_choice in SUPPORTED_BROWSERS:
+        browser = auth_choice
+    elif auth_choice == 'cookies':
+        cookies_file = input("Ruta al archivo de cookies: ").strip()
+        if not cookies_file:
+            print("Ruta invalida. Continuando sin autenticacion.")
+            cookies_file = None
+    elif auth_choice not in ('ninguno', 'no', 'n', ''):
+        print(f"Opcion '{auth_choice}' no reconocida. Continuando sin autenticacion.")
+
+    download_music(url, audio_format=fmt, output_dir=out, browser=browser, cookies_file=cookies_file)
+
+def main():
+    """Punto de entrada principal."""
+    if len(sys.argv) > 1 and not sys.argv[1].startswith('-'):
+        # Modo CLI legacy: python convertidor.py URL [formato]
+        url = sys.argv[1]
+        fmt = sys.argv[2] if len(sys.argv) > 2 else 'mp3'
+        out = sys.argv[3] if len(sys.argv) > 3 else None
+        download_music(url, audio_format=fmt, output_dir=out)
+    elif len(sys.argv) > 1:
+        # Modo CLI con argparse
+        parser = argparse.ArgumentParser(
+            description='Convertidor de YouTube/YouTube Music a audio',
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog='''
+Ejemplos:
+  %(prog)s "https://music.youtube.com/watch?v=..."
+  %(prog)s "URL" --format flac --browser firefox
+  %(prog)s "URL" --cookies cookies.txt
+  %(prog)s "URL" --format mp3 --output ./musica
+            '''
+        )
+
+        parser.add_argument('url', help='URL de YouTube o YouTube Music')
+        parser.add_argument('-f', '--format', default='mp3',
+                          choices=SUPPORTED_FORMATS,
+                          help='Formato de audio (default: mp3)')
+        parser.add_argument('-o', '--output', default=None,
+                          help=f'Directorio de salida (default: {DEFAULT_OUTPUT_DIR})')
+        parser.add_argument('-b', '--browser', default=None,
+                          choices=SUPPORTED_BROWSERS,
+                          help='Navegador para extraer cookies de autenticacion')
+        parser.add_argument('-c', '--cookies', default=None,
+                          help='Ruta al archivo de cookies (formato Netscape)')
+
+        args = parser.parse_args()
+
+        download_music(
+            url=args.url,
+            audio_format=args.format,
+            output_dir=args.output,
+            browser=args.browser,
+            cookies_file=args.cookies
+        )
+    else:
+        # Modo interactivo
+        interactive_mode()
+
+if __name__ == '__main__':
+    main()
